@@ -2,9 +2,9 @@
 
 **A sleek and slender C++'ish alternative to getopt and getopt_long**
 
-This library is header-only. Just `#include` it and you're done.
+This library is header-only. Just `#include` [getopt.hpp](https://github.com/607011/getopt-cpp/blob/main/include/getopt.hpp) and you're done.
 
-The `reg()` method registers an handler for a list of command-line switches. `argparser` finds one of the switches, it calls the handler with the argument, if the switch requires an argument (`argparser::required_argument`), otherwise the it calls the handler with an empty string.
+The `reg()` method registers an handler for a list of command-line switches. `argparser` finds one of the switches, it calls the handler with the argument, if the switch requires an argument (`argparser::required_argument`), otherwise it calls the handler with an empty string.
 
 If `argparser` finds command-line parameters without a switch, these can be queried as so-called positional arguments. Handlers for positionals are registered with the `pos()` method.
 
