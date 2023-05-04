@@ -67,5 +67,6 @@ POS 3 = blubb
 
 ## More examples
 
- - [sudoku++](https://github.com/607011/sudokuplusplus/blob/main/src/main.cpp)
- - [hibpdl++](https://github.com/607011/hibpdl/blob/main/src/main.cpp)
+  - [sudoku++](https://github.com/607011/sudokuplusplus/blob/main/src/main.cpp)
+  - [hibpdl++](https://github.com/607011/hibpdl/blob/main/src/main.cpp)
+  - [dirb++](https://github.com/607011/dirbplusplus/blob/main/src/main.cpp)
