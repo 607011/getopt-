@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -149,12 +150,23 @@ namespace argparser
             }
         }
 
+        friend std::ostream &operator<<(std::ostream &, argparser const &);
+
     private:
         std::vector<std::string> args_;
         std::vector<callback_t> positionals_;
         std::vector<callback_t>::const_iterator current_positional_;
         std::unordered_map<std::string, arg_options> options_;
+
     };
+
+    namespace {
+        std::ostream &operator<<(std::ostream &out, argparser const &opt)
+        {
+
+            return out;
+        }
+    }
 
 }
 
