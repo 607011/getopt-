@@ -150,8 +150,6 @@ namespace argparser
             }
         }
 
-        friend std::ostream &operator<<(std::ostream &, argparser const &);
-
     private:
         std::vector<std::string> args_;
         std::vector<callback_t> positionals_;
@@ -159,14 +157,6 @@ namespace argparser
         std::unordered_map<std::string, arg_options> options_;
 
     };
-
-    namespace {
-        std::ostream &operator<<(std::ostream &out, argparser const &opt)
-        {
-
-            return out;
-        }
-    }
 
 }
 
