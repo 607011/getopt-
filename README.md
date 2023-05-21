@@ -70,3 +70,4 @@ POS 3 = blubb
   - [sudoku++](https://github.com/607011/sudokuplusplus/blob/main/src/main.cpp)
   - [hibpdl++](https://github.com/607011/hibpdl/blob/main/src/main.cpp)
   - [dirb++](https://github.com/607011/dirbplusplus/blob/main/src/main.cpp)
+  - [txtz](https://github.com/607011/txtz/blob/main/src/mapbuilder.cpp)
