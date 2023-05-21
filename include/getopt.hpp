@@ -126,7 +126,7 @@ namespace argparser
                     }
                     case optional_argument:
                     {
-                        if (std::next(arg) != args_.end())
+                        if (std::next(arg) != args_.end() && options_.find(*std::next(arg)) == options_.end())
                         {
                             opt.handler(*(++arg));
                         }
@@ -155,7 +155,6 @@ namespace argparser
         std::vector<callback_t> positionals_;
         std::vector<callback_t>::const_iterator current_positional_;
         std::unordered_map<std::string, arg_options> options_;
-
     };
 
 }
