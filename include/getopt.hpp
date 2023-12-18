@@ -54,6 +54,21 @@ namespace argparser
         }
     };
 
+    class unknown_option_exception : public std::exception
+    {
+        std::string exception_message;
+
+    public:
+        explicit unknown_option_exception(std::string const &option_name)
+        {
+            exception_message = "Option `" + option_name + "` is unknown.";
+        }
+        const char *what() const throw()
+        {
+            return exception_message.c_str();
+        }
+    };
+
     class argparser
     {
     public:
@@ -98,7 +113,13 @@ namespace argparser
             return *this;
         }
 
-        void operator()()
+        /**
+         * @brief Parse command-line arguments.
+         *
+         * @return true Successfully parsed.
+         * @return false Errors occurred.
+         */
+        bool operator()()
         {
             current_positional_ = positionals_.begin();
             auto arg = args_.begin();
@@ -145,9 +166,14 @@ namespace argparser
                         (*current_positional_)(*arg);
                         ++current_positional_;
                     }
+                    else
+                    {
+                        throw unknown_option_exception(*arg);
+                    }
                 }
                 ++arg;
             }
+            return true;
         }
 
     private:
