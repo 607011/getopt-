@@ -69,20 +69,57 @@ namespace argparser
         }
     };
 
+    namespace util
+    {
+        template <class T>
+        inline void hash_combine(std::size_t &seed, const T &v)
+        {
+            std::hash<T> hasher;
+            seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+
+        struct options_hash
+        {
+            std::size_t operator()(std::vector<std::string> const &options) const noexcept
+            {
+                std::size_t seed = 0;
+                for (std::string const &s : options)
+                {
+                    hash_combine(seed, s);
+                }
+                return seed;
+            }
+        };
+
+    }
+
     class argparser
     {
     public:
         enum arg_type_t
         {
+            invalid_argument,
             no_argument,
             required_argument,
-            optional_argument
+            optional_argument,
         };
         using callback_t = std::function<void(std::string const &)>;
         struct arg_options
         {
+            std::string help{};
+            std::string arg_name{};
+            callback_t handler{nullptr};
+            arg_type_t arg_type{invalid_argument};
+
+            operator bool() const
+            {
+                return !!handler;
+            }
+        };
+        struct positional
+        {
+            std::string help;
             callback_t handler;
-            arg_type_t arg_type;
         };
 
         argparser() = delete;
@@ -96,21 +133,100 @@ namespace argparser
             }
         }
 
-        argparser &reg(std::vector<std::string> const &options, arg_type_t arg_type, callback_t handler)
+        argparser &reg(std::vector<std::string> const &options, std::string const &arg_name, arg_type_t arg_type, std::string const &help, callback_t handler)
         {
-            for (auto const &opt : options)
-            {
-                options_.emplace(std::make_pair(
-                    opt,
-                    arg_options{handler, arg_type}));
-            }
+            options_.emplace(std::make_pair(
+                options,
+                arg_options{help, arg_name, handler, arg_type}));
             return *this;
         }
 
-        argparser &pos(callback_t handler)
+        argparser &reg(std::vector<std::string> const &options, arg_type_t arg_type, std::string const &help, callback_t handler)
         {
-            positionals_.push_back(handler);
+            return reg(options, std::string{}, arg_type, help, handler);
+        }
+
+        argparser &pos(std::string help, callback_t handler)
+        {
+            positionals_.emplace_back(positional{help,
+                                                 handler});
             return *this;
+        }
+
+        argparser &help(std::vector<std::string> const &options, std::string const &help)
+        {
+            auto display_help = [this](std::string const &)
+            {
+                std::cout << info_text_ << "\n\n"
+                          << "Usage:\n\n"
+                          << "  " << name_ << ' ';
+                if (!options_.empty())
+                {
+                    std::cout << "[OPTIONS]";
+                }
+                std::cout << "\n\nOptions:\n\n";
+                for (auto const &[switches, options] : options_)
+                {
+                    std::cout << "  ";
+                    for (auto opt = std::begin(switches); opt != std::end(switches); ++opt)
+                    {
+                        switch (options.arg_type)
+                        {
+                        case no_argument:
+                            std::cout << *opt;
+                            break;
+                        case required_argument:
+                            std::cout << *opt << ' ' << options.arg_name;
+                            break;
+                        case optional_argument:
+                            std::cout << *opt << ' ' << options.arg_name;
+                            break;
+                        default:
+                            break;
+                        }
+                        if (std::next(opt) != std::end(switches))
+                        {
+                            std::cout << ", ";
+                        }
+                    }
+                    if (!options.help.empty())
+                    {
+                        std::cout << "\n\n    " << options.help;
+                    }
+                    std::cout << "\n\n";
+                }
+
+                std::cout << std::endl;
+                exit(EXIT_SUCCESS);
+            };
+
+            options_.emplace(std::make_pair(
+                options,
+                arg_options{help, std::string{}, display_help, no_argument}));
+
+            return *this;
+        }
+
+        argparser &info(std::string const &text, std::string const &name)
+        {
+            info_text_ = text;
+            name_ = name;
+            return *this;
+        }
+
+        arg_options find(std::string const &opt)
+        {
+            for (auto const &[options, option_options] : options_)
+            {
+                for (auto const &option : options)
+                {
+                    if (option == opt)
+                    {
+                        return option_options;
+                    }
+                }
+            }
+            return arg_options{};
         }
 
         /**
@@ -125,9 +241,9 @@ namespace argparser
             auto arg = args_.begin();
             while (arg != args_.end())
             {
-                if (options_.find(*arg) != options_.end())
+                arg_options opt = find(*arg);
+                if (opt)
                 {
-                    arg_options const &opt = options_.at(*arg);
                     switch (opt.arg_type)
                     {
                     case no_argument:
@@ -135,7 +251,7 @@ namespace argparser
                         break;
                     case required_argument:
                     {
-                        if (std::next(arg) != args_.end())
+                        if (std::next(arg) != std::end(args_))
                         {
                             opt.handler(*(++arg));
                         }
@@ -147,7 +263,7 @@ namespace argparser
                     }
                     case optional_argument:
                     {
-                        if (std::next(arg) != args_.end() && options_.find(*std::next(arg)) == options_.end())
+                        if (std::next(arg) != std::end(args_) && find(*std::next(arg)))
                         {
                             opt.handler(*(++arg));
                         }
@@ -157,13 +273,17 @@ namespace argparser
                         }
                         break;
                     }
+                    case invalid_argument:
+                        [[fallthrough]];
+                    default:
+                        break;
                     }
                 }
                 else
                 {
-                    if (current_positional_ != positionals_.end())
+                    if (current_positional_ != std::end(positionals_))
                     {
-                        (*current_positional_)(*arg);
+                        (current_positional_->handler)(*arg);
                         ++current_positional_;
                     }
                     else
@@ -178,9 +298,11 @@ namespace argparser
 
     private:
         std::vector<std::string> args_;
-        std::vector<callback_t> positionals_;
-        std::vector<callback_t>::const_iterator current_positional_;
-        std::unordered_map<std::string, arg_options> options_;
+        std::vector<positional> positionals_;
+        std::vector<positional>::const_iterator current_positional_;
+        std::unordered_map<std::vector<std::string>, arg_options, util::options_hash> options_;
+        std::string info_text_;
+        std::string name_;
     };
 
 }
