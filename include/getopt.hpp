@@ -118,8 +118,9 @@ namespace argparser
         };
         struct positional
         {
-            std::string help;
-            callback_t handler;
+            std::string help{};
+            std::string arg_name{};
+            callback_t handler{nullptr};
         };
 
         argparser() = delete;
@@ -146,9 +147,10 @@ namespace argparser
             return reg(options, std::string{}, arg_type, help, handler);
         }
 
-        argparser &pos(std::string help, callback_t handler)
+        argparser &pos(std::string const &arg_name, std::string help, callback_t handler)
         {
             positionals_.emplace_back(positional{help,
+                                                 arg_name,
                                                  handler});
             return *this;
         }
@@ -163,6 +165,27 @@ namespace argparser
                 if (!options_.empty())
                 {
                     std::cout << "[OPTIONS]";
+                    if (!positionals_.empty())
+                    {
+                        std::cout << ' ';
+                    }
+                }
+                if (!positionals_.empty())
+                {
+                    for (auto pos = std::begin(positionals_); pos != std::end(positionals_); ++pos)
+                    {
+                        std::cout << pos->arg_name;
+                        if (std::next(pos) != std::end(positionals_))
+                        {
+                            std::cout << ' ';
+                        }
+                    }
+                    std::cout << "\n\nArguments:\n\n";
+                    for (positional const &pos : positionals_)
+                    {
+                        std::cout << "  " << pos.arg_name << "\n\n"
+                                  << "    " << pos.help;
+                    }
                 }
                 std::cout << "\n\nOptions:\n\n";
                 for (auto const &[switches, options] : options_)
@@ -179,7 +202,7 @@ namespace argparser
                             std::cout << *opt << ' ' << options.arg_name;
                             break;
                         case optional_argument:
-                            std::cout << *opt << ' ' << options.arg_name;
+                            std::cout << *opt << " [" << options.arg_name << "]";
                             break;
                         default:
                             break;
