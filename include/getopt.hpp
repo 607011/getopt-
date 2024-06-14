@@ -147,9 +147,24 @@ namespace argparser
             return reg(options, std::string{}, arg_type, help, handler);
         }
 
+        [[deprecated]]
+        argparser &reg(std::vector<std::string> const &options, arg_type_t arg_type, callback_t handler)
+        {
+            return reg(options, std::string{}, arg_type, std::string{}, handler);
+        }
+
         argparser &pos(std::string const &arg_name, std::string help, callback_t handler)
         {
             positionals_.emplace_back(positional{help,
+                                                 arg_name,
+                                                 handler});
+            return *this;
+        }
+
+        [[deprecated]]
+        argparser &pos(std::string const &arg_name, callback_t handler)
+        {
+            positionals_.emplace_back(positional{std::string{},
                                                  arg_name,
                                                  handler});
             return *this;
@@ -172,6 +187,7 @@ namespace argparser
                 }
                 if (!positionals_.empty())
                 {
+                    bool has_help = false;
                     for (auto pos = std::begin(positionals_); pos != std::end(positionals_); ++pos)
                     {
                         std::cout << pos->arg_name;
@@ -179,12 +195,16 @@ namespace argparser
                         {
                             std::cout << ' ';
                         }
+                        has_help |= !pos->help.empty();
                     }
-                    std::cout << "\n\nArguments:\n\n";
-                    for (positional const &pos : positionals_)
+                    if (has_help)
                     {
-                        std::cout << "  " << pos.arg_name << "\n\n"
-                                  << "    " << pos.help;
+                        std::cout << "\n\nArguments:\n\n";
+                        for (positional const &pos : positionals_)
+                        {
+                            std::cout << "  " << pos.arg_name << "\n\n"
+                                      << "    " << pos.help << "\n";
+                        }
                     }
                 }
                 std::cout << "\n\nOptions:\n\n";
