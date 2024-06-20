@@ -1,6 +1,6 @@
 /*
 
- Copyright (c) 2023 Oliver Lau <oliver.lau@gmail.com>
+ Copyright (c) 2023-2024 Oliver Lau <oliver.lau@gmail.com>
 
  Permission is hereby granted, free of charge, to any person
  obtaining a copy of this software and associated documentation
@@ -69,6 +69,18 @@ namespace argparser
         }
     };
 
+    class help_requested_exception : public std::exception
+    {
+        std::string exception_message{};
+
+    public:
+        explicit help_requested_exception(){};
+        const char *what() const throw()
+        {
+            return exception_message.c_str();
+        }
+    };
+
     namespace util
     {
         template <class T>
@@ -113,7 +125,7 @@ namespace argparser
 
             operator bool() const
             {
-                return !!handler;
+                return handler != nullptr;
             }
         };
         struct positional
@@ -170,83 +182,81 @@ namespace argparser
             return *this;
         }
 
-        argparser &help(std::vector<std::string> const &options, std::string const &help)
+        void display_help(void)
         {
-            auto display_help = [this](std::string const &)
+            std::cout << info_text_ << "\n"
+                      << "Usage:\n\n"
+                      << "  " << name_ << ' ';
+            if (!options_.empty())
             {
-                std::cout << info_text_ << "\n\n"
-                          << "Usage:\n\n"
-                          << "  " << name_ << ' ';
-                if (!options_.empty())
+                std::cout << "[OPTIONS]";
+                if (!positionals_.empty())
                 {
-                    std::cout << "[OPTIONS]";
-                    if (!positionals_.empty())
+                    std::cout << ' ';
+                }
+            }
+            if (!positionals_.empty())
+            {
+                bool has_help = false;
+                for (auto pos = std::begin(positionals_); pos != std::end(positionals_); ++pos)
+                {
+                    std::cout << pos->arg_name;
+                    if (std::next(pos) != std::end(positionals_))
                     {
                         std::cout << ' ';
                     }
+                    has_help |= !pos->help.empty();
                 }
-                if (!positionals_.empty())
+                if (has_help)
                 {
-                    bool has_help = false;
-                    for (auto pos = std::begin(positionals_); pos != std::end(positionals_); ++pos)
+                    std::cout << "\n\nArguments:\n\n";
+                    for (positional const &pos : positionals_)
                     {
-                        std::cout << pos->arg_name;
-                        if (std::next(pos) != std::end(positionals_))
-                        {
-                            std::cout << ' ';
-                        }
-                        has_help |= !pos->help.empty();
-                    }
-                    if (has_help)
-                    {
-                        std::cout << "\n\nArguments:\n\n";
-                        for (positional const &pos : positionals_)
-                        {
-                            std::cout << "  " << pos.arg_name << "\n\n"
-                                      << "    " << pos.help << "\n";
-                        }
+                        std::cout << "  " << pos.arg_name << "\n\n"
+                                  << "    " << pos.help << "\n";
                     }
                 }
-                std::cout << "\n\nOptions:\n\n";
-                for (auto const &[switches, options] : options_)
+            }
+            std::cout << "\n\nOptions:\n\n";
+            for (auto const &[switches, options] : options_)
+            {
+                std::cout << "  ";
+                for (auto opt = std::begin(switches); opt != std::end(switches); ++opt)
                 {
-                    std::cout << "  ";
-                    for (auto opt = std::begin(switches); opt != std::end(switches); ++opt)
+                    switch (options.arg_type)
                     {
-                        switch (options.arg_type)
-                        {
-                        case no_argument:
-                            std::cout << *opt;
-                            break;
-                        case required_argument:
-                            std::cout << *opt << ' ' << options.arg_name;
-                            break;
-                        case optional_argument:
-                            std::cout << *opt << " [" << options.arg_name << "]";
-                            break;
-                        default:
-                            break;
-                        }
-                        if (std::next(opt) != std::end(switches))
-                        {
-                            std::cout << ", ";
-                        }
+                    case no_argument:
+                        std::cout << *opt;
+                        break;
+                    case required_argument:
+                        std::cout << *opt << ' ' << options.arg_name;
+                        break;
+                    case optional_argument:
+                        std::cout << *opt << " [" << options.arg_name << "]";
+                        break;
+                    default:
+                        break;
                     }
-                    if (!options.help.empty())
+                    if (std::next(opt) != std::end(switches))
                     {
-                        std::cout << "\n\n    " << options.help;
+                        std::cout << ", ";
                     }
-                    std::cout << "\n\n";
                 }
+                if (!options.help.empty())
+                {
+                    std::cout << "\n\n    " << options.help;
+                }
+                std::cout << "\n\n";
+            }
+            std::cout << std::endl;
+            throw help_requested_exception();
+        }
 
-                std::cout << std::endl;
-                exit(EXIT_SUCCESS);
-            };
-
+        argparser &help(std::vector<std::string> const &options, std::string const &help)
+        {
             options_.emplace(std::make_pair(
                 options,
-                arg_options{help, std::string{}, display_help, no_argument}));
-
+                arg_options{help, std::string{}, std::bind(&argparser::display_help, this), no_argument}));
             return *this;
         }
 
@@ -312,7 +322,7 @@ namespace argparser
                         }
                         else
                         {
-                            opt.handler(std::string());
+                            opt.handler(std::string{});
                         }
                         break;
                     }
