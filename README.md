@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
          {
             num_threads = std::stoul(arg);
         })
-    // register command-line switche that doesn't
+    // register command-line switch that doesn't
     // expect an argument, i.e. to increase the
     // level of verbosity
     .reg({"-v"},
